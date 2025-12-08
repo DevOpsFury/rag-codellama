@@ -12,6 +12,13 @@ MODEL_NAME = "codellama"
 
 # Load embedding model and ChromaDB database
 model = SentenceTransformer("multi-qa-MiniLM-L6-cos-v1")
+client = chromadb.PersistentClient(
+    path=CHROMA_PATH,
+    settings=Settings(anonymized_telemetry=False)
+)
+collection = client.get_or_create_collection(COLLECTION_NAME)
+
+
 # ---------------------------------------------------------
 # Function: generate embedding and search for context
 # ---------------------------------------------------------
@@ -26,17 +33,8 @@ def search_context(query: str, top_k: int = 5) -> str:
 
     documents = results["documents"][0]
     return "\n\n".join(documents)
-    )
-
-    if not results["documents"]:
-        return ""
-
-    documents = results["documents"][0]
-    return "\n\n".join(documents)
 
 
-# -----------------------------------------
-# 3. Function: query LLM model with context
 # -----------------------------------------
 # Function: query LLM model with context via Ollama
 # -----------------------------------------
@@ -65,6 +63,10 @@ Respond precisely and technically.
     resp = requests.post(OLLAMA_URL, json=payload)
     resp.raise_for_status()
 
+    data = resp.json()
+    return data.get("response", "")
+
+
 # -------------------------------------------------------
 # Usage example — Terraform analysis and refactoring
 # -------------------------------------------------------
@@ -91,7 +93,5 @@ module "vpc" {
     context = search_context(question + "\n" + tf_snippet)
     response = ask_model(question + "\n\nCode:\n" + tf_snippet, context)
 
-    print("\n=== MODEL RESPONSE ===\n")
-    print(response)
     print("\n=== MODEL RESPONSE ===\n")
     print(response)
