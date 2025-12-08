@@ -1,26 +1,31 @@
+#!/usr/bin/env python3
 from sentence_transformers import SentenceTransformer
 import chromadb
-from openai import OpenAI
+from chromadb.config import Settings
+import requests
 
+# Constants
+CHROMA_PATH = "embeddings/chroma"
+COLLECTION_NAME = "tf_docs"
+OLLAMA_URL = "http://localhost:11434/api/generate"
+MODEL_NAME = "codellama"
 
-# ---------------------------------------------
-# 1. Load embedding model and ChromaDB database
-# ---------------------------------------------
+# Load embedding model and ChromaDB database
 model = SentenceTransformer("multi-qa-MiniLM-L6-cos-v1")
-
-client = chromadb.PersistentClient(path="embeddings/chroma")
-collection = client.get_or_create_collection("terraform_docs")
-
-
 # ---------------------------------------------------------
-# 2. Function: generate embedding and search for context
+# Function: generate embedding and search for context
 # ---------------------------------------------------------
 def search_context(query: str, top_k: int = 5) -> str:
-    embedding = model.encode(query).tolist()
-
     results = collection.query(
-        query_embeddings=[embedding],
+        query_texts=[query],
         n_results=top_k
+    )
+
+    if not results["documents"]:
+        return ""
+
+    documents = results["documents"][0]
+    return "\n\n".join(documents)
     )
 
     if not results["documents"]:
@@ -32,6 +37,8 @@ def search_context(query: str, top_k: int = 5) -> str:
 
 # -----------------------------------------
 # 3. Function: query LLM model with context
+# -----------------------------------------
+# Function: query LLM model with context via Ollama
 # -----------------------------------------
 def ask_model(question: str, context: str) -> str:
     prompt = f"""
@@ -47,21 +54,19 @@ If something is missing from the context, state it clearly, but try to suggest a
 {question}
 
 Respond precisely and technically.
-    """
+"""
 
-    client = OpenAI()
+    payload = {
+        "model": MODEL_NAME,
+        "prompt": prompt,
+        "stream": False
+    }
 
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1
-    )
-
-    return response.choices[0].message["content"]
-
+    resp = requests.post(OLLAMA_URL, json=payload)
+    resp.raise_for_status()
 
 # -------------------------------------------------------
-# 4. Usage example — Terraform analysis and refactoring
+# Usage example — Terraform analysis and refactoring
 # -------------------------------------------------------
 if __name__ == "__main__":
 
@@ -84,7 +89,9 @@ module "vpc" {
     )
 
     context = search_context(question + "\n" + tf_snippet)
-    response = ask_model(question + "\n\nKod:\n" + tf_snippet, context)
+    response = ask_model(question + "\n\nCode:\n" + tf_snippet, context)
 
+    print("\n=== MODEL RESPONSE ===\n")
+    print(response)
     print("\n=== MODEL RESPONSE ===\n")
     print(response)
