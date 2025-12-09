@@ -39,11 +39,11 @@ python rag_pipeline.py
 
 ---
 
-## rag_simple.py
-Minimal RAG pipeline using OpenAI and ChromaDB, with a sample Terraform code analysis and best-practice suggestion.
+## query.py
+Minimal RAG pipeline using Ollama and ChromaDB, with a sample Terraform code analysis and best-practice suggestion.
 
 **Usage:**
 ```bash
-python rag_simple.py
+python quiery.py
 ```
-This script runs a hardcoded example and prints the model's answer.
+This script runs a hardcoded example and prints the model's answer. You can update it to your liking.
